@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brand Analytics Workspace</title>
+    <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js">
+let chartInstance = null;
+
+function renderChart({ canvasId, type, labels, data, label, options = {} }) {
+    const ctx = document.getElementById(canvasId).getContext('2d');
+
+    if (chartInstance) {
+        chartInstance.destroy();
+    }
+
+    chartInstance = new Chart(ctx, {
+        type,
+        data: {
+            labels: labels,
+            datasets: [{
+                label: label,
+                data: data,
+                backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { beginAtZero: true }
+            },
+            ...options
+        }
+    });
+}
+
+</script>
+</head>
+<body class="bg-dark text-light">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">Brand Analytics API</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/docs">Documentation</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/workspace">Workspace</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/gpt-integration">GPT Integration</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row mb-4">
+            <div class="col-12">
+                <h1 class="mb-4">Real-time Collaboration Workspace</h1>
+                <div class="alert alert-info" role="alert">
+                    This workspace allows you to collaborate with team members in real-time on brand analytics projects.
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Authentication Section -->
+            <div class="col-md-6 mb-4">
+                <div class="card bg-dark border-secondary">
+                    <div class="card-header">
+                        <h4>Authentication</h4>
+                    </div>
+                    <div class="card-body">
+                        <form id="auth-form">
+                            <div class="mb-3">
+                                <label for="api-key" class="form-label">API Key</label>
+                                <input type="text" class="form-control bg-dark text-light border-secondary" id="api-key" value="dev-api-key-for-testing" placeholder="Enter your API key">
+                                <div class="form-text text-muted">Default key for testing: dev-api-key-for-testing</div>
+                            </div>
+                            <button type="submit" class="btn btn-primary" id="auth-button">Authenticate</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Workspace Management Section -->
+            <div class="col-md-6 mb-4">
+                <div class="card bg-dark border-secondary">
+                    <div class="card-header">
+                        <h4>Workspace Management</h4>
+                    </div>
+                    <div class="card-body">
+                        <div id="workspace-controls" style="display: none;">
+                            <div class="mb-3">
+                                <label for="workspace-select" class="form-label">Select Workspace</label>
+                                <select class="form-select bg-dark text-light border-secondary" id="workspace-select">
+                                    <option value="" selected>Choose a workspace...</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <button class="btn btn-primary" id="join-workspace-btn">Join Workspace</button>
+                                <button class="btn btn-secondary ms-2" data-bs-toggle="modal" data-bs-target="#createWorkspaceModal">Create New</button>
+                            </div>
+                            <div class="mb-3">
+                                <label for="access-code" class="form-label">Access Code</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control bg-dark text-light border-secondary" id="access-code" placeholder="Enter access code">
+                                    <button class="btn btn-outline-secondary" type="button" id="join-by-code-btn">Join</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="auth-message" class="alert alert-warning">
+                            Please authenticate first to manage workspaces.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Active Workspace Section -->
+        <div class="row mb-4" id="active-workspace-section" style="display: none;">
+            <div class="col-12">
+                <div class="card bg-dark border-secondary">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h4 id="workspace-name">Workspace Name</h4>
+                        <span class="badge bg-success" id="workspace-status">Active</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <h5>Workspace Information</h5>
+                                <p id="workspace-description">Workspace description will appear here.</p>
+                                <div class="mb-3">
+                                    <h6>Access Code: <span id="workspace-access-code" class="badge bg-info">CODE123</span></h6>
+                                    <p class="text-muted small">Share this code with others to allow them to join this workspace.</p>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <h5>Online Members</h5>
+                                <ul class="list-group bg-dark" id="online-members-list">
+                                    <!-- Online members will be listed here -->
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Collaboration Tools -->
+        <div class="row" id="collaboration-tools" style="display: none;">
+            <div class="col-md-8">
+                <!-- Comments and Discussion -->
+                <div class="card bg-dark border-secondary mb-4">
+                    <div class="card-header">
+                        <h5>Comments & Discussion</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="comments-container" class="mb-3" style="max-height: 300px; overflow-y: auto;">
+                            <!-- Comments will be displayed here -->
+                        </div>
+                        <form id="comment-form">
+                            <div class="input-group">
+                                <textarea class="form-control bg-dark text-light border-secondary" id="comment-input" placeholder="Type your comment here..."></textarea>
+                                <button class="btn btn-primary" type="submit">Send</button>
+                            </div>
+                            <div class="form-text text-muted">Use @username to mention someone</div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Real-time Analytics Sharing -->
+                <div class="card bg-dark border-secondary">
+                    <div class="card-header">
+                        <h5>Share Analysis</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="share-analysis-form">
+                            <div class="mb-3">
+                                <label for="analysis-type" class="form-label">Analysis Type</label>
+                                <select class="form-select bg-dark text-light border-secondary" id="analysis-type">
+                                    <option value="sentiment">Sentiment Analysis</option>
+                                    <option value="brand-mentions">Brand Mentions</option>
+                                    <option value="competitor-comparison">Competitor Comparison</option>
+                                    <option value="brand-health">Brand Health</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="analysis-data" class="form-label">Analysis Data (JSON)</label>
+                                <textarea class="form-control bg-dark text-light border-secondary" id="analysis-data" rows="5" placeholder='{"brand": "Example", "score": 0.75, "metrics": {"sentiment": 0.8, "engagement": 0.7}}'></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Share with Workspace</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <!-- Notifications -->
+                <div class="card bg-dark border-secondary mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5>Notifications</h5>
+                        <span class="badge bg-danger" id="notification-count">0</span>
+                    </div>
+                    <div class="card-body">
+                        <div id="notifications-container" style="max-height: 300px; overflow-y: auto;">
+                            <!-- Notifications will be displayed here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Activity Log -->
+                <div class="card bg-dark border-secondary">
+                    <div class="card-header">
+                        <h5>Recent Activity</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="activity-container" style="max-height: 300px; overflow-y: auto;">
+                            <!-- Activity logs will be displayed here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Workspace Modal -->
+    <div class="modal fade" id="createWorkspaceModal" tabindex="-1" aria-labelledby="createWorkspaceModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content bg-dark text-light border-secondary">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="createWorkspaceModalLabel">Create New Workspace</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="create-workspace-form">
+                        <div class="mb-3">
+                            <label for="new-workspace-name" class="form-label">Workspace Name</label>
+                            <input type="text" class="form-control bg-dark text-light border-secondary" id="new-workspace-name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="new-workspace-description" class="form-label">Description</label>
+                            <textarea class="form-control bg-dark text-light border-secondary" id="new-workspace-description" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="new-workspace-public">
+                            <label class="form-check-label" for="new-workspace-public">Make workspace public</label>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="create-workspace-btn">Create Workspace</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Join Workspace Modal -->
+    <div class="modal fade" id="joinWorkspaceModal" tabindex="-1" aria-labelledby="joinWorkspaceModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content bg-dark text-light border-secondary">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="joinWorkspaceModalLabel">Join Workspace</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="join-workspace-form">
+                        <div class="mb-3">
+                            <label for="join-workspace-id" class="form-label">Workspace ID</label>
+                            <input type="text" class="form-control bg-dark text-light border-secondary" id="join-workspace-id" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label for="join-workspace-access-code" class="form-label">Access Code</label>
+                            <input type="text" class="form-control bg-dark text-light border-secondary" id="join-workspace-access-code" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="confirm-join-workspace-btn">Join</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Share Analysis Result Modal -->
+    <div class="modal fade" id="analysisResultModal" tabindex="-1" aria-labelledby="analysisResultModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content bg-dark text-light border-secondary">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="analysisResultModalLabel">Analysis Results</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="analysis-result-container">
+                        <!-- Analysis results will be displayed here -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js">
+let chartInstance = null;
+
+function renderChart({ canvasId, type, labels, data, label, options = {} }) {
+    const ctx = document.getElementById(canvasId).getContext('2d');
+
+    if (chartInstance) {
+        chartInstance.destroy();
+    }
+
+    chartInstance = new Chart(ctx, {
+        type,
+        data: {
+            labels: labels,
+            datasets: [{
+                label: label,
+                data: data,
+                backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { beginAtZero: true }
+            },
+            ...options
+        }
+    });
+}
+
+</script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Socket.io connection
+            let socket;
+            let currentWorkspace = null;
+            let apiKey = null;
+            
+            // DOM elements
+            const authForm = document.getElementById('auth-form');
+            const apiKeyInput = document.getElementById('api-key');
+            const authButton = document.getElementById('auth-button');
+            const workspaceControls = document.getElementById('workspace-controls');
+            const authMessage = document.getElementById('auth-message');
+            const workspaceSelect = document.getElementById('workspace-select');
+            const joinWorkspaceBtn = document.getElementById('join-workspace-btn');
+            const accessCodeInput = document.getElementById('access-code');
+            const joinByCodeBtn = document.getElementById('join-by-code-btn');
+            const createWorkspaceBtn = document.getElementById('create-workspace-btn');
+            const newWorkspaceName = document.getElementById('new-workspace-name');
+            const newWorkspaceDescription = document.getElementById('new-workspace-description');
+            const newWorkspacePublic = document.getElementById('new-workspace-public');
+            const activeWorkspaceSection = document.getElementById('active-workspace-section');
+            const workspaceName = document.getElementById('workspace-name');
+            const workspaceDescription = document.getElementById('workspace-description');
+            const workspaceAccessCode = document.getElementById('workspace-access-code');
+            const onlineMembersList = document.getElementById('online-members-list');
+            const collaborationTools = document.getElementById('collaboration-tools');
+            const commentsContainer = document.getElementById('comments-container');
+            const commentForm = document.getElementById('comment-form');
+            const commentInput = document.getElementById('comment-input');
+            const notificationsContainer = document.getElementById('notifications-container');
+            const notificationCount = document.getElementById('notification-count');
+            const activityContainer = document.getElementById('activity-container');
+            const shareAnalysisForm = document.getElementById('share-analysis-form');
+            const analysisType = document.getElementById('analysis-type');
+            const analysisData = document.getElementById('analysis-data');
+            const analysisResultContainer = document.getElementById('analysis-result-container');
+            const joinWorkspaceForm = document.getElementById('join-workspace-form');
+            const joinWorkspaceId = document.getElementById('join-workspace-id');
+            const joinWorkspaceAccessCode = document.getElementById('join-workspace-access-code');
+            const confirmJoinWorkspaceBtn = document.getElementById('confirm-join-workspace-btn');
+            
+            // Initialize Bootstrap modals
+            const createWorkspaceModal = new bootstrap.Modal(document.getElementById('createWorkspaceModal'));
+            const joinWorkspaceModal = new bootstrap.Modal(document.getElementById('joinWorkspaceModal'));
+            const analysisResultModal = new bootstrap.Modal(document.getElementById('analysisResultModal'));
+            
+            // Authentication form handler
+            authForm.addEventListener('submit', function(event) {
+                event.preventDefault();
+                
+                apiKey = apiKeyInput.value.trim();
+                
+                if (!apiKey) {
+                    showAlert('Please enter an API key.', 'danger');
+                    return;
+                }
+                
+                // Test the API key by fetching workspaces
+                fetch('/api/collaboration/workspaces', {
+                    headers: {
+                        'X-API-Key': apiKey
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Invalid API key');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Authentication successful
+                    authMessage.style.display = 'none';
+                    workspaceControls.style.display = 'block';
+                    authButton.textContent = 'Authenticated';
+                    authButton.classList.remove('btn-primary');
+                    authButton.classList.add('btn-success');
+                    
+                    // Initialize Socket.IO connection
+                    initializeSocketConnection();
+                    
+                    // Populate workspace select
+                    populateWorkspaceSelect(data);
+                    
+                    showAlert('Authentication successful!', 'success');
+                })
+                .catch(error => {
+                    console.error('Authentication error:', error);
+                    showAlert('Authentication failed. Please check your API key.', 'danger');
+                });
+            });
+            
+            // Initialize Socket.IO connection
+            function initializeSocketConnection() {
+                socket = io();
+                
+                // Socket connection events
+                socket.on('connect', () => {
+                    console.log('Connected to Socket.IO server');
+                });
+                
+                socket.on('disconnect', () => {
+                    console.log('Disconnected from Socket.IO server');
+                });
+                
+                // Handle user join event
+                socket.on('user_joined', (data) => {
+                    console.log('User joined:', data);
+                    addActivity(`${data.username} joined the workspace`);
+                    updateOnlineMembers();
+                });
+                
+                // Handle user leave event
+                socket.on('user_left', (data) => {
+                    console.log('User left:', data);
+                    addActivity(`${data.username} left the workspace`);
+                    updateOnlineMembers();
+                });
+                
+                // Handle new comments
+                socket.on('new_comment', (data) => {
+                    console.log('New comment:', data);
+                    addComment(data);
+                });
+                
+                // Handle mentions
+                socket.on('mention', (data) => {
+                    console.log('Mentioned in comment:', data);
+                    showAlert(`You were mentioned by ${data.from_user}`, 'info');
+                    addNotification(`@${data.from_user} mentioned you in a comment`);
+                });
+                
+                // Handle analysis updates
+                socket.on('analysis_update', (data) => {
+                    console.log('Analysis update:', data);
+                    addActivity(`${data.username} shared ${data.analysis_type} analysis`);
+                    displayAnalysisResult(data);
+                });
+                
+                // Handle online users update
+                socket.on('online_users_update', (data) => {
+                    console.log('Online users update:', data);
+                    updateOnlineMembersList(data.online_users);
+                });
+                
+                // Handle errors
+                socket.on('error', (data) => {
+                    console.error('Socket error:', data);
+                    showAlert(data.message || 'An error occurred', 'danger');
+                });
+            }
+            
+            // Populate workspace select
+            function populateWorkspaceSelect(workspaces) {
+                workspaceSelect.innerHTML = '<option value="" selected>Choose a workspace...</option>';
+                
+                workspaces.forEach(workspace => {
+                    const option = document.createElement('option');
+                    option.value = workspace.id;
+                    option.textContent = workspace.name;
+                    option.dataset.accessCode = workspace.access_code || '';
+                    workspaceSelect.appendChild(option);
+                });
+            }
+            
+            // Join workspace button handler
+            joinWorkspaceBtn.addEventListener('click', function() {
+                const selectedOption = workspaceSelect.options[workspaceSelect.selectedIndex];
+                
+                if (!selectedOption || !selectedOption.value) {
+                    showAlert('Please select a workspace to join.', 'warning');
+                    return;
+                }
+                
+                const workspaceId = selectedOption.value;
+                const accessCode = selectedOption.dataset.accessCode;
+                
+                if (accessCode) {
+                    // If we already have the access code, join directly
+                    joinWorkspace(workspaceId, accessCode);
+                } else {
+                    // Otherwise, open the join modal to enter access code
+                    joinWorkspaceId.value = workspaceId;
+                    joinWorkspaceAccessCode.value = '';
+                    joinWorkspaceModal.show();
+                }
+            });
+            
+            // Confirm join workspace button handler
+            confirmJoinWorkspaceBtn.addEventListener('click', function() {
+                const workspaceId = joinWorkspaceId.value;
+                const accessCode = joinWorkspaceAccessCode.value;
+                
+                if (!workspaceId || !accessCode) {
+                    showAlert('Please enter an access code.', 'warning');
+                    return;
+                }
+                
+                joinWorkspace(workspaceId, accessCode);
+                joinWorkspaceModal.hide();
+            });
+            
+            // Join by code button handler
+            joinByCodeBtn.addEventListener('click', function() {
+                const accessCode = accessCodeInput.value.trim();
+                
+                if (!accessCode) {
+                    showAlert('Please enter an access code.', 'warning');
+                    return;
+                }
+                
+                // Here we would need to implement a lookup by access code
+                // For now, showing an alert
+                showAlert('Joining by access code is not implemented yet.', 'info');
+            });
+            
+            // Create workspace button handler
+            createWorkspaceBtn.addEventListener('click', function() {
+                const name = newWorkspaceName.value.trim();
+                const description = newWorkspaceDescription.value.trim();
+                const isPublic = newWorkspacePublic.checked;
+                
+                if (!name) {
+                    showAlert('Please enter a workspace name.', 'warning');
+                    return;
+                }
+                
+                createWorkspace(name, description, isPublic);
+                createWorkspaceModal.hide();
+            });
+            
+            // Join workspace function
+            function joinWorkspace(workspaceId, accessCode) {
+                fetch(`/api/collaboration/workspaces/${workspaceId}/join`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': apiKey
+                    },
+                    body: JSON.stringify({
+                        access_code: accessCode
+                    })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to join workspace');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Successfully joined
+                    showAlert('Successfully joined workspace!', 'success');
+                    
+                    // Get workspace details
+                    getWorkspaceDetails(workspaceId);
+                    
+                    // Join Socket.IO room
+                    socket.emit('join_workspace', {
+                        workspace_id: workspaceId,
+                        api_key: apiKey
+                    });
+                })
+                .catch(error => {
+                    console.error('Join workspace error:', error);
+                    showAlert('Failed to join workspace. Please check the access code.', 'danger');
+                });
+            }
+            
+            // Create workspace function
+            function createWorkspace(name, description, isPublic) {
+                fetch('/api/collaboration/workspaces', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': apiKey
+                    },
+                    body: JSON.stringify({
+                        name: name,
+                        description: description,
+                        is_public: isPublic
+                    })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to create workspace');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Successfully created
+                    showAlert('Workspace created successfully!', 'success');
+                    
+                    // Add to select and select it
+                    const option = document.createElement('option');
+                    option.value = data.id;
+                    option.textContent = data.name;
+                    option.dataset.accessCode = data.access_code;
+                    workspaceSelect.appendChild(option);
+                    workspaceSelect.value = data.id;
+                    
+                    // Get workspace details
+                    getWorkspaceDetails(data.id);
+                    
+                    // Join Socket.IO room
+                    socket.emit('join_workspace', {
+                        workspace_id: data.id,
+                        api_key: apiKey
+                    });
+                })
+                .catch(error => {
+                    console.error('Create workspace error:', error);
+                    showAlert('Failed to create workspace.', 'danger');
+                });
+            }
+            
+            // Get workspace details function
+            function getWorkspaceDetails(workspaceId) {
+                fetch(`/api/collaboration/workspaces/${workspaceId}`, {
+                    headers: {
+                        'X-API-Key': apiKey
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to get workspace details');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Update current workspace
+                    currentWorkspace = data;
+                    
+                    // Show active workspace section and collaboration tools
+                    activeWorkspaceSection.style.display = 'block';
+                    collaborationTools.style.display = 'block';
+                    
+                    // Update workspace details
+                    workspaceName.textContent = data.name;
+                    workspaceDescription.textContent = data.description || 'No description provided.';
+                    workspaceAccessCode.textContent = data.access_code || 'N/A';
+                    
+                    // Update online members
+                    updateOnlineMembersList(data.online_members || []);
+                    
+                    // Load comments
+                    loadComments(workspaceId);
+                    
+                    // Load activities
+                    if (data.recent_activities) {
+                        activityContainer.innerHTML = '';
+                        data.recent_activities.forEach(activity => {
+                            addActivity(activity.description, activity.created_at);
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Get workspace details error:', error);
+                    showAlert('Failed to load workspace details.', 'danger');
+                });
+            }
+            
+            // Load comments function
+            function loadComments(workspaceId) {
+                fetch(`/api/collaboration/workspaces/${workspaceId}/comments`, {
+                    headers: {
+                        'X-API-Key': apiKey
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to load comments');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    commentsContainer.innerHTML = '';
+                    data.forEach(comment => {
+                        addComment(comment);
+                    });
+                })
+                .catch(error => {
+                    console.error('Load comments error:', error);
+                    showAlert('Failed to load comments.', 'danger');
+                });
+            }
+            
+            // Update online members list
+            function updateOnlineMembers() {
+                if (!currentWorkspace) return;
+                
+                // Ping for online users
+                socket.emit('ping_workspace', {
+                    workspace_id: currentWorkspace.id,
+                    api_key: apiKey
+                });
+            }
+            
+            // Update online members list
+            function updateOnlineMembersList(members) {
+                onlineMembersList.innerHTML = '';
+                
+                if (!members || members.length === 0) {
+                    const li = document.createElement('li');
+                    li.className = 'list-group-item bg-dark text-light border-secondary';
+                    li.textContent = 'No members online';
+                    onlineMembersList.appendChild(li);
+                    return;
+                }
+                
+                members.forEach(member => {
+                    const li = document.createElement('li');
+                    li.className = 'list-group-item bg-dark text-light border-secondary d-flex justify-content-between align-items-center';
+                    li.textContent = member.username;
+                    
+                    const badge = document.createElement('span');
+                    badge.className = 'badge bg-success rounded-pill';
+                    badge.textContent = 'online';
+                    
+                    li.appendChild(badge);
+                    onlineMembersList.appendChild(li);
+                });
+            }
+            
+            // Add comment to container
+            function addComment(comment) {
+                const commentElement = document.createElement('div');
+                commentElement.className = 'card bg-dark border-secondary mb-2';
+                
+                const cardBody = document.createElement('div');
+                cardBody.className = 'card-body py-2';
+                
+                const header = document.createElement('div');
+                header.className = 'd-flex justify-content-between align-items-center mb-2';
+                
+                const author = document.createElement('h6');
+                author.className = 'card-subtitle';
+                author.textContent = comment.username || 'Unknown User';
+                
+                const time = document.createElement('small');
+                time.className = 'text-muted';
+                time.textContent = formatDate(comment.created_at);
+                
+                header.appendChild(author);
+                header.appendChild(time);
+                
+                const content = document.createElement('p');
+                content.className = 'card-text mb-0';
+                content.textContent = comment.content;
+                
+                cardBody.appendChild(header);
+                cardBody.appendChild(content);
+                
+                // If it has replies, add them
+                if (comment.replies && comment.replies.length > 0) {
+                    const repliesContainer = document.createElement('div');
+                    repliesContainer.className = 'ms-4 mt-2 border-start border-secondary ps-2';
+                    
+                    comment.replies.forEach(reply => {
+                        const replyElement = document.createElement('div');
+                        replyElement.className = 'mb-2';
+                        
+                        const replyHeader = document.createElement('div');
+                        replyHeader.className = 'd-flex justify-content-between align-items-center mb-1';
+                        
+                        const replyAuthor = document.createElement('h6');
+                        replyAuthor.className = 'card-subtitle small';
+                        replyAuthor.textContent = reply.username || 'Unknown User';
+                        
+                        const replyTime = document.createElement('small');
+                        replyTime.className = 'text-muted';
+                        replyTime.textContent = formatDate(reply.created_at);
+                        
+                        replyHeader.appendChild(replyAuthor);
+                        replyHeader.appendChild(replyTime);
+                        
+                        const replyContent = document.createElement('p');
+                        replyContent.className = 'card-text small mb-0';
+                        replyContent.textContent = reply.content;
+                        
+                        replyElement.appendChild(replyHeader);
+                        replyElement.appendChild(replyContent);
+                        
+                        repliesContainer.appendChild(replyElement);
+                    });
+                    
+                    cardBody.appendChild(repliesContainer);
+                }
+                
+                commentElement.appendChild(cardBody);
+                commentsContainer.appendChild(commentElement);
+                
+                // Scroll to bottom
+                commentsContainer.scrollTop = commentsContainer.scrollHeight;
+            }
+            
+            // Comment form handler
+            commentForm.addEventListener('submit', function(event) {
+                event.preventDefault();
+                
+                if (!currentWorkspace) {
+                    showAlert('Please join a workspace first.', 'warning');
+                    return;
+                }
+                
+                const content = commentInput.value.trim();
+                
+                if (!content) {
+                    showAlert('Please enter a comment.', 'warning');
+                    return;
+                }
+                
+                // Send comment via Socket.IO
+                socket.emit('send_comment', {
+                    workspace_id: currentWorkspace.id,
+                    api_key: apiKey,
+                    content: content,
+                    target_id: null,
+                    target_type: null,
+                    parent_id: null
+                });
+                
+                // Clear input
+                commentInput.value = '';
+            });
+            
+            // Share analysis form handler
+            shareAnalysisForm.addEventListener('submit', function(event) {
+                event.preventDefault();
+                
+                if (!currentWorkspace) {
+                    showAlert('Please join a workspace first.', 'warning');
+                    return;
+                }
+                
+                const type = analysisType.value;
+                const dataStr = analysisData.value.trim();
+                
+                if (!dataStr) {
+                    showAlert('Please enter analysis data.', 'warning');
+                    return;
+                }
+                
+                try {
+                    const data = JSON.parse(dataStr);
+                    
+                    // Share analysis via Socket.IO
+                    socket.emit('share_analysis', {
+                        workspace_id: currentWorkspace.id,
+                        api_key: apiKey,
+                        analysis_type: type,
+                        data: data
+                    });
+                    
+                    showAlert('Analysis shared successfully!', 'success');
+                } catch (error) {
+                    console.error('Parse JSON error:', error);
+                    showAlert('Invalid JSON data. Please check your input.', 'danger');
+                }
+            });
+            
+            // Add activity to container
+            function addActivity(description, timestamp = null) {
+                const activityElement = document.createElement('div');
+                activityElement.className = 'mb-2 border-bottom border-secondary pb-2';
+                
+                const activityDesc = document.createElement('p');
+                activityDesc.className = 'mb-1';
+                activityDesc.textContent = description;
+                
+                const activityTime = document.createElement('small');
+                activityTime.className = 'text-muted';
+                activityTime.textContent = timestamp ? formatDate(timestamp) : 'Just now';
+                
+                activityElement.appendChild(activityDesc);
+                activityElement.appendChild(activityTime);
+                
+                activityContainer.insertBefore(activityElement, activityContainer.firstChild);
+            }
+            
+            // Add notification to container
+            function addNotification(message, timestamp = null) {
+                const notificationElement = document.createElement('div');
+                notificationElement.className = 'alert alert-info mb-2';
+                
+                const notificationMsg = document.createElement('p');
+                notificationMsg.className = 'mb-1';
+                notificationMsg.textContent = message;
+                
+                const notificationTime = document.createElement('small');
+                notificationTime.className = 'text-muted';
+                notificationTime.textContent = timestamp ? formatDate(timestamp) : 'Just now';
+                
+                notificationElement.appendChild(notificationMsg);
+                notificationElement.appendChild(notificationTime);
+                
+                notificationsContainer.insertBefore(notificationElement, notificationsContainer.firstChild);
+                
+                // Increment notification count
+                const count = parseInt(notificationCount.textContent) || 0;
+                notificationCount.textContent = count + 1;
+            }
+            
+            // Display analysis result
+            
+function displayAnalysisResult(data) {
+    showAlert(`${data.username} shared ${data.analysis_type} analysis`, 'info');
+    let formattedHtml = '';
+    let chartConfig = null;
+
+    switch (data.analysis_type) {
+        case 'brand-mentions':
+            if (data.data.brand_mentions) {
+                const labels = Object.keys(data.data.brand_mentions);
+                const values = labels.map(brand => data.data.brand_mentions[brand].mentions);
+
+                formattedHtml = `<h4>Brand Mentions Analysis</h4><canvas id="analysisChart"></canvas>`;
+                chartConfig = {
+                    canvasId: 'analysisChart',
+                    type: 'bar',
+                    labels,
+                    data: values,
+                    label: 'Mentions'
+                };
+            }
+            break;
+
+        case 'competitor-comparison':
+            if (data.data.competitors) {
+                const labels = Object.keys(data.data.competitors);
+                const values = labels.map(comp => data.data.competitors[comp].engagement || 0);
+
+                formattedHtml = `<h4>Competitor Comparison</h4><canvas id="analysisChart"></canvas>`;
+                chartConfig = {
+                    canvasId: 'analysisChart',
+                    type: 'bar',
+                    labels,
+                    data: values,
+                    label: 'Engagement'
+                };
+            }
+            break;
+
+        case 'brand-health':
+            if (data.data.metrics) {
+                const labels = Object.keys(data.data.metrics);
+                const values = Object.values(data.data.metrics);
+
+                formattedHtml = `<h4>Brand Health Metrics</h4><canvas id="analysisChart"></canvas>`;
+                chartConfig = {
+                    canvasId: 'analysisChart',
+                    type: 'radar',
+                    labels,
+                    data: values,
+                    label: 'Metrics'
+                };
+            }
+            break;
+
+        default:
+            formattedHtml = `
+                <h4>Analysis Data</h4>
+                <div class="card bg-dark border-secondary mb-3">
+                    <div class="card-body">
+                        <pre class="mb-0">${JSON.stringify(data.data, null, 2)}</pre>
+                    </div>
+                </div>
+            `;
+    }
+
+    formattedHtml += `<p class="mb-0 text-muted">Shared by ${data.username} at ${formatDate(data.timestamp)}</p>`;
+    analysisResultContainer.innerHTML = formattedHtml;
+    analysisResultModal.show();
+
+    if (chartConfig) {
+        setTimeout(() => renderChart(chartConfig), 100);
+    }
+}
+
+            
+            // Helper function to format dates
+            function formatDate(dateString) {
+                if (!dateString) return 'Unknown';
+                
+                const date = new Date(dateString);
+                return date.toLocaleString();
+            }
+            
+            // Show alert function
+            function showAlert(message, type = 'info') {
+                const alertElement = document.createElement('div');
+                alertElement.className = `alert alert-${type} alert-dismissible fade show`;
+                alertElement.role = 'alert';
+                
+                alertElement.innerHTML = `
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                `;
+                
+                document.querySelector('.container').insertBefore(alertElement, document.querySelector('.container').firstChild);
+                
+                // Auto-dismiss after 5 seconds
+                setTimeout(() => {
+                    alertElement.classList.remove('show');
+                    setTimeout(() => {
+                        alertElement.remove();
+                    }, 150);
+                }, 5000);
+            }
+        });
+    
+let chartInstance = null;
+
+function renderChart({ canvasId, type, labels, data, label, options = {} }) {
+    const ctx = document.getElementById(canvasId).getContext('2d');
+
+    if (chartInstance) {
+        chartInstance.destroy();
+    }
+
+    chartInstance = new Chart(ctx, {
+        type,
+        data: {
+            labels: labels,
+            datasets: [{
+                label: label,
+                data: data,
+                backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { beginAtZero: true }
+            },
+            ...options
+        }
+    });
+}
+
+</script>
+</body>
+</html>
